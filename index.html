@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Aether – Your Personal AI Therapist</title>
+    <script src="script.js" defer></script>
+
+    <!-- ✅ Tailwind CDN (Correct) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gradient-to-br from-indigo-50 to-gray-100 min-h-screen flex justify-center items-center px-4">
+
+    <div class="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+      <div class="bg-white shadow-2xl rounded-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 p-4 flex items-center gap-3">
+          <!-- ✅ Replace with your own local or hosted image -->
+          <img src="https://raw.githubusercontent.com/rohanbalixz/Aether/main/assets/aether-logo.png" alt="Aether Icon" class="w-10 h-10 rounded-full border-white border-2"/>
+          <div>
+            <h1 class="text-white text-lg font-semibold">Aether</h1>
+            <p class="text-indigo-200 text-sm">Your Personal AI Therapist</p>
+          </div>
+        </div>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="h-[65vh] overflow-y-auto p-4 space-y-4 bg-gray-50">
+          <!-- Messages will be appended here -->
+        </div>
+
+        <!-- Input -->
+        <div class="flex border-t border-gray-200">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="How are you feeling today?"
+            class="flex-1 p-3 text-sm focus:outline-none"
+          />
+          <button
+            id="sendBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-l-none transition"
+          >
+            ➤
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bubble Styles -->
+    <style>
+      .message {
+        padding: 10px 15px;
+        border-radius: 15px;
+        max-width: 80%;
+        word-wrap: break-word;
+      }
+
+      .user-message {
+        background-color: #dcfce7;
+        align-self: flex-end;
+        text-align: right;
+      }
+
+      .aether-message {
+        background-color: #e0e7ff;
+        align-self: flex-start;
+        text-align: left;
+      }
+
+      #chat-window {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </body>
+</html>
+

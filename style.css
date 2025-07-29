@@ -1,0 +1,129 @@
+/* Font & Reset */
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #f5f7fb;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Chat Container */
+.chat-container {
+  width: 100%;
+  max-width: 480px;
+  height: 90vh;
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background-color: #6c63ff;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: url('https://avatars.githubusercontent.com/u/139329299?s=200&v=4') center/cover no-repeat;
+}
+
+.title h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.title p {
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Chat Window */
+.chat-window {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #f9fafe;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Message Bubbles */
+.message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  animation: fadeIn 0.3s ease;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #dfe3fa;
+  color: #333;
+  border-bottom-right-radius: 4px;
+}
+
+.aether-message {
+  align-self: flex-start;
+  background-color: #eceef9;
+  color: #222;
+  border-bottom-left-radius: 4px;
+}
+
+/* Input Area */
+.input-area {
+  display: flex;
+  border-top: 1px solid #e0e0e0;
+  padding: 12px 16px;
+  background-color: #fff;
+}
+
+.input-area input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  outline: none;
+  font-size: 14px;
+}
+
+.input-area button {
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  padding: 0 18px;
+  margin-left: 10px;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.input-area button:hover {
+  background-color: #5b52e6;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
