@@ -19,7 +19,7 @@ app = FastAPI(
     version="4.0.1"
 )
 
-# === CORS ===
+# === CORS Middleware ===
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,18 +28,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# === Session Memory ===
-session_store = {}  # maps session_id to {'summary': str}
+# === In-Memory Session Store ===
+session_store = {}
 
-# === Model & Pipelines ===
+# === Load Model ===
 MODEL_NAME = "microsoft/phi-1_5"
-
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    torch_dtype=(torch.bfloat16 if torch.cuda.is_available() else torch.float32),
-    device_map=("auto" if torch.cuda.is_available() else None)
+    torch_dtype=torch.float32,
+    device_map=None
 )
+
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+model.to(device)
 
 def make_pipeline(max_tokens, temperature, top_p, penalty):
     return pipeline(
@@ -65,14 +67,14 @@ pipes = {
     'medical':  make_pipeline(150, 0.5, 0.9, 1.1),
 }
 
-# === Intent Classification ===
+# === Regex-based Intent Classification ===
 INTENT_PATTERNS = {
-    'meta':   re.compile(r"\b(assume|hallucin|weird|bug|error|really|for real|stuck)\b", re.I),
-    'crisis': re.compile(r"\b(suicid|self[- ]harm|kill myself|end my life)\b", re.I),
-    'harm':   re.compile(r"\b(kill(?:ed)?|hurt|harm|trap(?:ped)?)\b", re.I),
-    'medical':re.compile(r"\b(hunger|hungry|appetite|eat|eating|anorexia)\b", re.I),
-    'deep':   re.compile(r"\b(secret|regret|trauma|grief|self-sabotage|heartbroken|cheated|betrayed)\b", re.I),
-    'chat':   re.compile(r"\b(pizza|travel|riddle|recipe|animal|fun fact|icebreaker|vacation|universe)\b", re.I),
+    'meta':    re.compile(r"\b(assume|hallucin|weird|bug|error|really|for real|stuck)\b", re.I),
+    'crisis':  re.compile(r"\b(suicid|self[- ]harm|kill myself|end my life)\b", re.I),
+    'harm':    re.compile(r"\b(kill(?:ed)?|hurt|harm|trap(?:ped)?)\b", re.I),
+    'medical': re.compile(r"\b(hunger|hungry|appetite|eat|eating|anorexia)\b", re.I),
+    'deep':    re.compile(r"\b(secret|regret|trauma|grief|self-sabotage|heartbroken|cheated|betrayed)\b", re.I),
+    'chat':    re.compile(r"\b(pizza|travel|riddle|recipe|animal|fun fact|icebreaker|vacation|universe)\b", re.I),
 }
 
 def classify_intent(text: str) -> str:
@@ -81,7 +83,7 @@ def classify_intent(text: str) -> str:
             return intent
     return 'therapy'
 
-# === Simple Emotion Tagging ===
+# === Simple Emotion Detection ===
 EMOTION_KEYWORDS = {
     'sadness': ['sad', 'depressed', 'unhappy'],
     'anger':   ['angry', 'frustrated'],
@@ -94,7 +96,7 @@ def tag_emotion(text: str) -> str:
             return emo
     return 'neutral'
 
-# === Pre/Post Filters ===
+# === Pre-filtered Rules ===
 GREETING_RE    = re.compile(r"^(hi|hello|hey|good\s+(morning|afternoon|evening))\b", re.I)
 AI_IDENTITY_RE = re.compile(r"\b(i am not an ai|you are not an ai)\b", re.I)
 PROFANITY_RE   = re.compile(r"\b(fuck|shit|damn|crap|bitch)\b", re.I)
@@ -107,7 +109,7 @@ class UserMessage(BaseModel):
     session_id: str = None
     message: str
 
-# === Utility ===
+# === Session Summary Management ===
 def update_summary(sid: str, user: str, bot: str):
     store = session_store.setdefault(sid, {'summary': ''})
     entry = f"User: {user} Bot: {bot}"
@@ -118,10 +120,11 @@ def update_summary(sid: str, user: str, bot: str):
 async def ask(msg: UserMessage):
     sid = msg.session_id or str(uuid.uuid4())
     text = msg.message.strip()
+
     if not text:
         raise HTTPException(400, "Empty message received.")
 
-    # Pre-filtered responses
+    # Greeting response
     if GREETING_RE.match(text):
         resp = random.choice([
             "Hello! How are you feeling today?",
@@ -131,16 +134,19 @@ async def ask(msg: UserMessage):
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
+    # Identity clarification
     if AI_IDENTITY_RE.search(text):
         resp = "I’m Aether, your AI therapist here—how can I assist you today?"
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
+    # Profanity filter
     if PROFANITY_RE.search(text):
         resp = "I hear strong language—would you like to share more about what's frustrating you?"
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
+    # Crisis filter
     if any(flag in text.lower() for flag in RED_FLAGS):
         resp = (
             "I’m really sorry you’re in crisis. If you’re in danger, please call 911 or the Suicide & Crisis Lifeline at 988."
@@ -149,11 +155,12 @@ async def ask(msg: UserMessage):
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
-    # Intent / emotion
+    # Determine intent and emotion
     intent = classify_intent(text)
     emotion = tag_emotion(text)
     summary = session_store.get(sid, {}).get('summary', '')
 
+    # Handle short answers
     if len(text.split()) <= SHORT_MAX and emotion == 'neutral':
         low = text.lower().strip('?!.')
         if low in AFFIRMATIONS:
@@ -166,11 +173,13 @@ async def ask(msg: UserMessage):
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
+    # Meta intent handling
     if intent == 'meta':
         resp = "I’m sorry for the confusion. Can you clarify what you’d like me to do differently?"
         update_summary(sid, text, resp)
         return {"session_id": sid, "response": resp}
 
+    # Pipeline and prompt
     gen_pipe, sys_prompt = {
         'crisis': (pipes['crisis'],   "You are Aether, a crisis counselor."),
         'harm':   (pipes['therapy'],  "You are Aether, specializing in guilt and harm processing."),
@@ -190,12 +199,12 @@ async def ask(msg: UserMessage):
     try:
         result = gen_pipe(full_prompt)
         raw = result[0].get('generated_text', '').strip()
+        reply = raw[len(full_prompt):].strip() if raw.startswith(full_prompt) else raw
+        reply = re.split(r"\nUser:", reply)[0].strip()
+        reply = reply.strip('"“”')  # Remove quotes
     except Exception as e:
         logger.error(f"Generation error: {e}")
         raise HTTPException(500, "Model generation failed.")
 
-    reply = raw[len(full_prompt):].strip() if raw.startswith(full_prompt) else raw
-    reply = re.split(r"\nUser:", reply)[0].strip()
     update_summary(sid, text, reply)
-
     return {"session_id": sid, "response": reply}
